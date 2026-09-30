@@ -52,7 +52,7 @@ def _resolve(value: Any, base: Path) -> Any:
     if isinstance(value, str) and value:
         path = (base / value).expanduser()
         if path.is_file():
-            if path.suffix.lower() in {".safetensors", ".npz"}:
+            if path.suffix.lower() in {".safetensors", ".npz", ".pth", ".pt"}:
                 return load_weight_stats(path)
             return json.loads(path.read_text())
     return value if value is not None else {}
