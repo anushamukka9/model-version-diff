@@ -1,20 +1,20 @@
 # model-version-diff
 
-**Diff model versions and explain what changed** — across configs, weights, training data, and behavior.
+**Diff model versions and explain what changed** - across configs, weights, training data, and behavior.
 
 When you promote a model from `v1` to `v2`, the question is never "did the version
-number change" — it's *what* changed and *whether it matters*. `model-version-diff`
+number change" - it's *what* changed and *whether it matters*. `model-version-diff`
 compares two model versions across four axes and renders a Markdown or HTML report
 you can attach to a release, a model card, or a review thread:
 
 | Axis | What it compares |
 |------|------------------|
 | ⚙️ **Config** | Nested config/hyperparameter diffs, semantically typed (hyperparameter, architecture, data, infra) with severity: 🔴 breaking, 🟡 significant, ⚪ minor |
-| 🧮 **Weights** | Per-layer mean/std/norm deltas from `.safetensors` (pure-Python parsing — no torch needed), `.npz`, or precomputed stats JSON; ranks layers by drift |
+| 🧮 **Weights** | Per-layer mean/std/norm deltas plus distribution-shape drift (16-bin standardized histograms) from `.safetensors` (pure-Python parsing - no torch needed), `.npz`, `.pth`/`.pt` (needs torch), or precomputed stats JSON; ranks layers by drift |
 | 📦 **Dataset** | Training-dataset fingerprint comparison: volume change, schema changes, standardized distribution drift |
 | 🎯 **Behavior** | Prediction flips on a fixed probe set: flip rate, label transitions, confidence drift |
 
-No model framework required at diff time — versions are described by small JSON
+No model framework required at diff time - versions are described by small JSON
 **manifests** plus optional sidecar files (stats dumps, prediction JSON).
 
 ## Install
@@ -59,12 +59,16 @@ model-version-diff diff v1.json v2.json --format json --out diff.json
 
 # Compute weight stats from raw tensors (safetensors needs no torch)
 model-version-diff weights model.safetensors --out weight_stats.json
+
+# PyTorch state dicts work too when torch is installed; otherwise convert first
+python examples/convert_torch_to_npz.py model.pth model.npz
 ```
 
-Or run the bundled example (builds two synthetic versions and diffs them):
+Or run the bundled examples (each builds synthetic versions and diffs them):
 
 ```bash
-python examples/quickstart.py
+python examples/quickstart.py          # full four-axis diff of a tiny MLP
+python examples/compare_checkpoints.py # safetensors checkpoints, drift ranking
 ```
 
 ## API
@@ -110,4 +114,4 @@ python -m pytest
 
 ## License
 
-MIT — see [LICENSE](LICENSE). Copyright 2026 Anusha Mukka.
+MIT - see [LICENSE](LICENSE). Copyright 2026 Anusha Mukka.
