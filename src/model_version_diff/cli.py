@@ -29,8 +29,8 @@ def _build_parser() -> argparse.ArgumentParser:
     d.add_argument("--top-layers", type=int, default=10,
                    help="How many of the most-drifted layers to show (default: 10)")
 
-    w = sub.add_parser("weights", help="Compute weight stats from a .safetensors or .npz file")
-    w.add_argument("file", help="Path to the weight file")
+    w = sub.add_parser("weights", help="Compute weight stats from a weight file")
+    w.add_argument("file", help="Path to the weight file (.safetensors, .npz, .pth/.pt with torch)")
     w.add_argument("--out", "-o", default=None, help="Write stats JSON here (default: stdout)")
     return p
 
