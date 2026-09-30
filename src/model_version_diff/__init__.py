@@ -13,7 +13,7 @@ as Markdown, HTML, or JSON.
 """
 
 from .config_diff import diff_configs, ConfigChange
-from .weights import compute_weight_stats, load_weight_stats, diff_weight_stats
+from .weights import compute_weight_stats, load_weight_stats, diff_weight_stats, write_safetensors
 from .dataset import diff_datasets, DatasetDiff
 from .behavior import diff_predictions, BehaviorDiff
 from .manifest import load_manifest, VersionManifest
@@ -30,6 +30,7 @@ __all__ = [
     "diff_predictions",
     "compute_weight_stats",
     "load_weight_stats",
+    "write_safetensors",
     "load_manifest",
     "render_markdown",
     "render_html",
