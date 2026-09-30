@@ -58,14 +58,16 @@ def render_markdown(diff: VersionDiff) -> str:
         L.append("")
     top = wd.get("top_changed", [])
     if top:
-        L.append("**Largest per-layer drift** (relative Δmean + Δstd + Δnorm):")
+        L.append("**Largest per-layer drift** (relative Δmean + Δstd + Δnorm; shape drift = L1 distance between standardized histograms, 0 = identical):")
         L.append("")
-        L.append("| Layer | Drift score | Δmean | Δstd | Δnorm | Shape changed |")
-        L.append("|---|---|---|---|---|---|")
+        L.append("| Layer | Drift score | Δmean | Δstd | Δnorm | Shape drift | Shape changed |")
+        L.append("|---|---|---|---|---|---|---|")
         for r in top:
+            hd = r.get("histogram_drift")
+            hd_s = f"{hd:.3f}" if hd is not None else "-"
             L.append(
                 f"| `{r['layer']}` | {r['drift_score']:.4f} | {r['mean_delta']:+.4g} "
-                f"| {r['std_delta']:+.4g} | {r['norm_delta']:+.4g} | {r['shape_changed']} |"
+                f"| {r['std_delta']:+.4g} | {r['norm_delta']:+.4g} | {hd_s} | {r['shape_changed']} |"
             )
         L.append("")
 
@@ -74,7 +76,7 @@ def render_markdown(diff: VersionDiff) -> str:
     if dd is not None:
         L.append("## 📦 Training dataset")
         L.append("")
-        L.append(f"**{dd.name_old} → {dd.name_new}** — samples: {dd.n_samples_old:,} → {dd.n_samples_new:,} "
+        L.append(f"**{dd.name_old} → {dd.name_new}** - samples: {dd.n_samples_old:,} → {dd.n_samples_new:,} "
                  f"({dd.sample_delta_pct:+.1f}%)")
         fp = {True: "✅ identical", False: "❌ changed", None: "⚠️ not provided"}.get(dd.fingerprint_match)
         L.append(f"Fingerprint: {fp}")
@@ -101,7 +103,7 @@ def render_markdown(diff: VersionDiff) -> str:
             if det["cardinality_old"] != det["cardinality_new"] or det["new_values"] or det["dropped_values"]:
                 L.append("")
                 L.append(f"`{d.column}`: cardinality {det['cardinality_old']} → {det['cardinality_new']}; "
-                         f"new values: {det['new_values'] or '—'}; dropped: {det['dropped_values'] or '—'}")
+                         f"new values: {det['new_values'] or '-'}; dropped: {det['dropped_values'] or '-'}")
         L.append("")
 
     # --- Behavior ---
@@ -111,7 +113,7 @@ def render_markdown(diff: VersionDiff) -> str:
         L.append("")
         L.append(
             f"Probes: {bd.n_common} common ({bd.n_probes_old} vs {bd.n_probes_new}). "
-            f"**Flips: {bd.n_flips} ({100 * bd.flip_rate:.2f}%)** — agreement {100 * bd.agreement_rate:.2f}%."
+            f"**Flips: {bd.n_flips} ({100 * bd.flip_rate:.2f}%)** - agreement {100 * bd.agreement_rate:.2f}%."
         )
         L.append("")
         if bd.transitions:
@@ -125,7 +127,7 @@ def render_markdown(diff: VersionDiff) -> str:
             L.append("|---|---|---|---|")
             for f in bd.flips[:25]:
                 sd = f.as_dict()["score_delta"]
-                L.append(f"| `{f.probe_id}` | {f.old_label} | {f.new_label} | {sd if sd is not None else '—'} |")
+                L.append(f"| `{f.probe_id}` | {f.old_label} | {f.new_label} | {sd if sd is not None else '-'} |")
             if len(bd.flips) > 25:
                 L.append(f"| … | | | *+{len(bd.flips) - 25} more* |")
             L.append("")
@@ -150,7 +152,7 @@ def render_markdown(diff: VersionDiff) -> str:
 def _short(value, limit: int = 40) -> str:
     text = json.dumps(value) if not isinstance(value, str) else value
     if text is None:
-        return "—"
+        return "-"
     return text if len(text) <= limit else text[: limit - 1] + "…"
 
 
