@@ -3,7 +3,7 @@
 ## The version manifest
 
 A manifest is a JSON document describing one model version. Every field except
-`model`/`version` is optional — include what you have, and the differ compares
+`model`/`version` is optional - include what you have, and the differ compares
 what's present on both sides.
 
 ```jsonc
@@ -17,6 +17,7 @@ what's present on both sides.
   //   - path to a stats JSON (output of `model-version-diff weights`, or hand-built)
   //   - path to a .safetensors file  (parsed in pure Python, no torch needed)
   //   - path to a .npz file
+  //   - path to a .pth/.pt PyTorch state dict (needs torch installed)
   "weights": "v2_weight_stats.json",
 
   // Dataset fingerprint descriptor (see below), inline or as a file ref
@@ -28,8 +29,8 @@ what's present on both sides.
 ```
 
 Paths are resolved relative to the manifest file. `{"$file": "x.json"}` forces a
-JSON-file read; a bare string ending in `.safetensors`/`.npz` is parsed as weight
-tensors, anything else is read as JSON.
+JSON-file read; a bare string ending in `.safetensors`/`.npz`/`.pth`/`.pt` is
+parsed as weight tensors, anything else is read as JSON.
 
 ## Weight stats format
 
@@ -37,18 +38,29 @@ tensors, anything else is read as JSON.
 
 ```jsonc
 {"tensors": {"encoder.weight": {"shape": [64, 32], "dtype": "float32",
- "numel": 2048, "mean": 0.001, "std": 0.48, "norm": 21.7, "min": -1.9, "max": 1.8}}}
+ "numel": 2048, "mean": 0.001, "std": 0.48, "norm": 21.7, "min": -1.9, "max": 1.8,
+ "histogram": [0, 3, 41, 210, ...], "hist_edges": [-4.0, -3.5, -3.0, ...]}}}
 ```
 
-You can generate this with your own tooling instead — the differ only needs
-`mean`, `std`, and `norm` per layer. Stats are lossy by design: safe to commit
-to a registry, attach to PRs, or publish.
+You can generate this with your own tooling instead - the differ only needs
+`mean`, `std`, and `norm` per layer (`histogram` is optional; dumps written
+before histograms existed report shape drift as unknown rather than failing).
+Stats are lossy by design: safe to commit to a registry, attach to PRs, or publish.
 
 **Drift score.** Each compared layer gets `drift_score = |Δmean|/|mean| +
 |Δstd|/|std| + |Δnorm|/|norm|`, so layers are ranked by *relative* movement
 regardless of scale. A 0.4 shift in a near-zero-mean head layer outranks noise
-in a large-norm embedding — which is exactly the signal you want when asking
+in a large-norm embedding - which is exactly the signal you want when asking
 "which part of the model actually changed?"
+
+**Shape drift.** Alongside mean/std/norm, every tensor carries a 16-bin
+histogram of its *standardized* values over fixed edges in [-4, 4]. The diff
+reports `histogram_drift`, the L1 distance between the two normalized
+histograms (0 = identical shape, up to 2 = fully disjoint). Because the values
+are standardized first, shape drift is blind to pure location/scale shifts -
+it catches changes in distribution *shape* (a Gaussian turning bimodal, heavy
+tails appearing) that leave mean/std/norm nearly untouched. The report's drift
+table shows both numbers side by side.
 
 ## Dataset fingerprint format
 
@@ -74,15 +86,15 @@ Configs are flattened to dotted paths (`training.optimizer.lr`) and each key is
 classified by name into **hyperparameter**, **architecture**, **data**,
 **infra**, or **other**. Severity rules:
 
-- 🔴 **breaking** — architecture key removed or architecture-defining value
+- 🔴 **breaking** - architecture key removed or architecture-defining value
   changed (checkpoints/artifacts likely incompatible).
-- 🟡 **significant** — hyperparameter value changed (expect different training
+- 🟡 **significant** - hyperparameter value changed (expect different training
   dynamics) or any key removed.
-- ⚪ **minor** — everything else (new keys, infra tweaks).
+- ⚪ **minor** - everything else (new keys, infra tweaks).
 
 ## Behavior diffing
 
-Probe sets should be **fixed** across versions — the same inputs, re-scored.
+Probe sets should be **fixed** across versions - the same inputs, re-scored.
 The differ reports flip rate, the full flip list (with confidence deltas when
 scores are present), label transition counts (`fraud -> legit: 12`), confidence
 drift on the probes that *didn't* flip, and probe-set skew (ids only in one
